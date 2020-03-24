@@ -32,10 +32,37 @@ plt.rcParams['lines.linewidth'] = 1
 plt.rcParams['lines.markersize'] = 1
 
 
-DIR = os.path.dirname(os.path.realpath(__file__))
+DIR = os.getcwd()
+# DIR = os.path.dirname(os.path.realpath(__file__))
 DF1 = pd.read_csv(DIR + "/DATA/Financial_Info_SG_Firms_Combined.csv")
-
+# %%
 # remove all nans
+DF1.dropna(axis=0, how="all", inplace=True)
+DF1.dropna(axis=1, how="all", inplace=True)
+list(DF1)
+UNI = DF1.nunique(dropna=True)
+UNI[UNI<3]
+# %%
+
+# %%
+
+# this is for creating the defintion table
+DEF1 = pd.read_excel(DIR + "/DATA/Financial_Info_SG_Firms.xlsx",
+                     sheet_name="DEFINITION_WORLDSCOPE_STATIC", head)
+DEF1.set_index("Name", inplace=True)
+DEF2 = pd.read_excel(DIR + "/DATA/Financial_Info_SG_Firms.xlsx",
+                     sheet_name="DEFINITION_WORLDSCOPE_TS")
+DEF2.set_index("Name", inplace=True)
+print(DEF2.head())
+
+
+
+print(list(DEF1))
+print(list(DEF2))
+
+DEF = DEF1.append(DEF2)
+# look it up like this:
+print(DEF.loc["ADR CUSIP 1"])
 
 # %%
 
@@ -49,6 +76,8 @@ def view_df(df_v):
     # not sure but, I think duplicate data is useless
     df_v.drop_duplicates(inplace=True, ignore_index=True)
     df_v = df_v.loc[:, ~df_v.columns.duplicated()]
+
+
     print(df_v.shape)
     id_v = []
     keep = []
