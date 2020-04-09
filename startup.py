@@ -3,7 +3,7 @@
 #   jupytext:
 #     text_representation:
 #       extension: .py
-#       format_name: light
+#       format_name: percent
 #       format_version: '1.5'
 #       jupytext_version: 1.4.0
 #   kernelspec:
@@ -20,7 +20,11 @@
 import os
 import pandas as pd
 import numpy as np
+import regex as re
 import matplotlib.pyplot as plt
+import requests
+from bs4 import BeautifulSoup as bs4
+# %%
 # I make the data local on my machine will change it soon
 plt.rc_context({'axes.edgecolor': 'orange',
                 'xtick.color': 'red', 'ytick.color': 'green',
@@ -41,20 +45,16 @@ DF1.dropna(axis=0, how="all", inplace=True)
 DF1.dropna(axis=1, how="all", inplace=True)
 list(DF1)
 UNI = DF1.nunique(dropna=True)
-UNI[UNI<3]
-# %%
-
 # %%
 
 # this is for creating the defintion table
 DEF1 = pd.read_excel(DIR + "/DATA/Financial_Info_SG_Firms.xlsx",
-                     sheet_name="DEFINITION_WORLDSCOPE_STATIC", head)
+                     sheet_name="DEFINITION_WORLDSCOPE_STATIC")
 DEF1.set_index("Name", inplace=True)
 DEF2 = pd.read_excel(DIR + "/DATA/Financial_Info_SG_Firms.xlsx",
                      sheet_name="DEFINITION_WORLDSCOPE_TS")
 DEF2.set_index("Name", inplace=True)
 print(DEF2.head())
-
 
 
 print(list(DEF1))
@@ -76,8 +76,6 @@ def view_df(df_v):
     # not sure but, I think duplicate data is useless
     df_v.drop_duplicates(inplace=True, ignore_index=True)
     df_v = df_v.loc[:, ~df_v.columns.duplicated()]
-
-
     print(df_v.shape)
     id_v = []
     keep = []
@@ -115,4 +113,52 @@ def view_df(df_v):
 
 
 # %%
-KEEP, ID_V, TIME, LOCATION, REMOVE = view_df(DF1)
+# KEEP, ID_V, TIME, LOCATION, REMOVE = view_df(DF1)
+
+# %%
+print(DEF.loc["Market Price - Current (Security)"])
+
+# %%
+# cleaning
+DF1.columns = [re.sub("\s", "_", x) for x in list(DF1)]
+
+# %% [markdown]
+# building models to predict Industry type
+
+# %%
+Y_VAL = DF1[["Thomson_Reuters_Business_Classification_Code", "serial_number",
+         "Worldscope_Permanent_ID", "Date_Added_To_Product"]]
+Y_VAL.index = Y_VAL["serial_number"]
+Y_VAL = Y_VAL[Y_VAL.notnull()]
+Y_VAL.columns = ["predict_me", "id", "company_id", "time"]
+Y_VAL = Y_VAL.astype(str)
+Y_VAL["predict_me"] = Y_VAL["predict_me"].str.replace(r"\.0", "")
+print(Y_VAL)
+# %%
+# seeing if the company type changed
+BOTH = Y_VAL["predict_me"] + Y_VAL["company_id"]
+print(BOTH.nunique())
+print(Y_VAL["company_id"].nunique())
+NEED = BOTH.nunique()
+# BOTH are equal
+
+# %%
+Y_VAL = Y_VAL.sort_values("time", ascending=False)
+CURR_INDEX =
+# %%
+# import the information data on the types
+WIKI = requests.get(url =
+                "https://en.wikipedia.org/wiki/Thomson_Reuters_Business_Classification")
+PARS = bs4(WIKI.text)
+TAB = PARS.body.find("table")
+Y_MAP = pd.read_html(str(TAB))
+Y_MAP
+
+# %%
+
+# %%
+# playground
+df = Y_VAL["predict_me"]
+pd.DataFrame([df.unique, df.nunique])
+# %%
+df.str.startswith("5").sum()
