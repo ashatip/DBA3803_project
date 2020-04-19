@@ -1,3 +1,4 @@
+"""small file for some common linear methods"""
 # ---
 # jupyter:
 #   jupytext:
@@ -15,65 +16,61 @@
 
 # %%
 from statsmodels.formula.api import ols
-from sklearn.linear_model import ElasticNetCV
 import pandas as pd
 import numpy as np
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
-import re
 # %%
 
-df = pd.read_csv("data_static.csv")
-# drop empty columns
-df = df.dropna(axis=1, how='all')
-
-# %%
-# keep only certain columns because we don't want the model equation to be too big
-# we choose 'Indicated Dividend Rate (Security)' to be our Y
-newdf = df[['Indicated Dividend Rate (Security)',
-        'Alpha (Security)', 'Beta (WS)',
-       'Book Value Per Share - Current (Security)',
-       'Cash Flow Per Share - Current (Security)',
-         'Earnings Yield - Current (Security)',
-        'Market Capitalization Current (U.S.$)',
-        'Market Price - Current (Security)',
-        'Price/Book Value Ratio - Current (Security)',
-       'Price/Cash Flow Current (Security)',
-       'Price/Earnings Ratio - Current (Security)',
-        'Return On Equity - Per Share - Current']]
-h = newdf
-import re
-h = h.rename(columns=lambda x: re.sub('\W', '_', x))
-
-print('\nThe dataset has', len(h), 'rows and', h.shape[1], 'columns.')
-# len(h) == h.shape[0]
-
-print('\nColumns are:', list(h))
-newdf2 = df[['Indicated Dividend Rate (Security)',
-        'Alpha (Security)', 'Beta (WS)',
-       'Book Value Per Share - Current (Security)',
-       'Cash Flow Per Share - Current (Security)',
-         'Earnings Yield - Current (Security)',
-        'Market Capitalization Current (U.S.$)']]
-
-newdf3 = df[['Indicated Dividend Rate (Security)',
-            'Market Price - Current (Security)',
-        'Price/Book Value Ratio - Current (Security)',
-       'Price/Cash Flow Current (Security)',
-       'Price/Earnings Ratio - Current (Security)',
-        'Return On Equity - Per Share - Current']]
-
-newdf2 = newdf2.rename(columns=lambda x: re.sub('\W', '_', x))
-newdf3 = newdf3.rename(columns=lambda x: re.sub('\W', '_', x))
-
-DF2 = newdf2
-print("Null values", DF2.isnull().sum())
 # %% [markdown]
 # AHMET code
 # %%
 
+def view_df(df_v):
+    """Function for viewing the columns of the data frame and deciding to keep
+    or remove"""
+    # remove na and duplicate rows
+    df_v.dropna(axis=0, how="all", inplace=True)
+    df_v.dropna(axis=1, how="all", inplace=True)
+    # not sure but, I think duplicate data is useless
+    df_v.drop_duplicates(inplace=True, ignore_index=True)
+    df_v = df_v.loc[:, ~df_v.columns.duplicated()]
+    print(df_v.shape)
+    id_v = []
+    keep = []
+    remove = []
+    location = []
+    time = []
+    for i in list(df_v):
+        print("*****")
+        print("COL: ", i)
+        i_type = df_v[i].dtypes
+        print("Type", i_type)
+        print("% of NA", df_v[i].isna().sum()*100/len(df_v[i]))
+        print("number of unique values: ", df_v[i].nunique())
+        num_print = 5
+        if num_print > df_v[i].nunique():
+            num_print = df_v[i].nunique()
+        print("some example values", df_v[i].unique()[:num_print])
+        if np.issubdtype(df_v[i].dtype, np.number):
+            plt.hist(df_v[i])
+            plt.show()
+        sub = input("Is the column a: \n l for location \n k for keep \n r fo"
+                    + "remove \n i for id \n t for time")
+        if sub[0] == "l":
+            location.append(i)
+        elif sub[0] == "k":
+            keep.append(i)
+        elif sub[0] == "r":
+            remove.append(i)
+        elif sub[0] == "i":
+            id_v.append(i)
+        elif sub[0] == "t":
+            time.append(i)
+        print("*****")
+    return keep, id_v, time, location, remove
 
-def add_powers(data, do_not_include, powers):
+
+def add_powers(data, powers, do_not_include):
     """adding powers"""
     x_col = list(data)
     for rem in do_not_include:
@@ -208,31 +205,76 @@ def stepwise_selection(data, y_val,
     return model
 
 
-# %%
-# training and testing using ELASTIC NET
-# not sure if it will finish in time or not
-DF2.dropna(inplace=True)
-Y_VAL = DF2.columns[0]
-DF2 = add_interactions(newdf2, newdf2.columns[0])
-DF2 = add_powers(Y_VAL, DF2, [2, 3])
-DF2_TRA = DF2.sample(frac=0.8, random_state=200)
-# random state is a seed value
-DF2_TES = DF2.drop(DF2_TRA.index)
+# from class
 
-# %%
-# elastic fitting, took a bit too long
-# ELA_CV = ElasticNetCV(cv=10, l1_ratio=[.1, .5, .7, .9,  1],
-#                       alphas=[.1, .5, .7, .9,  1], max_iter=5000)
-# FIT = ELA_CV.fit(DF2_TRA.drop(columns=[Y_VAL]), DF2_TRA[Y_VAL])
-# FIT.get_params()
-# %%
-# %%
 
-FOR = forward_selection(DF2_TRA, Y_VAL)
-STEP = stepwise_selection(DF2_TRA, Y_VAL)
-print("FORWARD")
-print(FOR.summary2())
-print("STEP")
-print(STEP.summary2())
+#Regression_RandomForest_GradientBoosting_NeuralNetwork_SupportVector
+def fitpred(model, modstr, x_train, x_test, y_train, y_test):
+    """good for plotting most important values
+    model is model for sklearn
+    modstr is model name"""
+    stm = time.time()
+    print(f'\033[1m' + '\n\n' + modstr, 'Regression may take time...' + f'\033[0m') #in bold
+    model.fit(x_train, y_train)
+    try:
+        im = model.feature_importances_
+        nx = len(im)
 
+        #plot in original order of columns
+        pl.title("For '" + y_train.name + "', in " + str(nx) + " Variables' Original Order")
+
+        #original x-order
+        pl.plot(im)
+        locs, labs = pl.xticks()
+        pl.xticks(locs, [''] + [list(x_train)[i] for i in [int(x) for x in list(locs[1:])
+                                                           if x <= len(list(x_train)) - 1]], rotation=90)
+
+        pl.ylabel('Relative Importance')
+        pl.show()
+
+        #plot in the order of variable's importance
+        pl.title("Ranked by Relative Importance for '" + y_train.name + "'")
+        rs = sorted(im, reverse=True)
+        i = min(9, nx)
+        pl.plot(rs[:i])
+        locs, labs = pl.xticks()
+        xs = [z for _, z in sorted(zip(im, list(x_train)), reverse=True)]
+        pl.xticks(locs[:i + 1], [''] + [xs[i] for i in [int(x) for x in list(locs[1:])
+                                                        if x <= len(xs) - 1]][:i], rotation=90)
+        pl.ylabel('Relative Importance')
+        pl.show()
+    except:
+        print()
+
+    #predict using test set
+
+    predictmod = model.predict(x_test)
+    print(modstr, 'validation  MAE =', mean_absolute_error(y_test, predictmod))
+    print(modstr, 'validation RMSE =', np.sqrt(mean_squared_error(y_test, predictmod)))
+    #r2_score(y_test, predictmod) is not reliable (may be < 0)
+    r2 = pd.concat([y_test, pd.Series(predictmod, index=y_test.index)], 1).corr().iloc[0, 1] ** 2
+    print(modstr, 'validation   R² =', r2)
+
+    #plot y vs y-hat
+
+    #plot pseudo regression line
+    s, i = np.polyfit(predictmod, y_test, 1) #s=slope, i=intercept
+    a, b = min(predictmod), max(predictmod)
+    pl.plot([a, b], i + [s * a, s * b], 'red', linewidth=0.4) #increase linewidth for darker line
+    del s, i, a, b
+
+    #scatter y vs y-hat
+    pl.scatter(predictmod, y_test, s=6, linewidths=0)
+    xn = modstr + ' Prediction'
+    yn = y_test.name
+    pl.xlabel(xn)
+    pl.ylabel(yn)
+    pl.xticks(rotation=90)
+    pl.title("Plot of '" + yn + "' vs '" + xn + "' for " + str(len(y_test)) + ' obs')
+    pl.show()
+
+    print('\n' + modstr, 'Regression for', len(x_train), 'rows and', x_train.shape[1], 'columns, and prediction for',
+          len(x_test), 'rows, took', '%.2f' % ((time.time() - stm) / 60), 'mins.')
+
+    return r2
 
